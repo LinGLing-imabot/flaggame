@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>🌍 Flag Game: Two Modes</title>
+  
+  <!-- PWA Meta Tags -->
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#007aff">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="Flag Game">
+  <link rel="apple-touch-icon" href="icon-192.png">
+  
+  <style>
+    :root {
+      --bg:#f5f7fa; --card-bg:#fff; --primary:#007aff;
+      --text:#111; --muted:#888; --radius:20px;
+      --shadow:0 8px 24px rgba(0,0,0,0.08);
+    }
+    * {box-sizing:border-box;}
+    body {
+      margin:0; font-family:-apple-system,Segoe UI,Roboto,sans-serif;
+      background:var(--bg); color:var(--text);
+      display:flex; align-items:center; justify-content:center;
+      min-height:100vh; padding:20px;
+    }
+    .card {
+      background:var(--card-bg); box-shadow:var(--shadow);
+      border-radius:var(--radius); padding:30px 25px;
+      max-width:500px; width:100%; text-align:center;
+      animation:fadeIn 0.3s ease-out;
+    }
+    h2 {margin-top:0; font-size:1.8em; color:var(--primary);}
+    .hint {color:var(--muted); margin-bottom:16px;}
+    input, button {
+      width:100%; padding:12px 16px; margin:8px 0;
+      font-size:1em; border-radius:var(--radius);
+      border:1px solid #ccc;
+    }
+    input:focus {border-color:var(--primary); outline:none;}
+    button {
+      background:var(--primary); color:#fff; border:none;
+      cursor:pointer; transition:background .3s ease;
+    }
+    button:hover {background:#005ecb;}
+    .mode-btn {
+      background:#e0e0e0; color:#333; margin-top:14px;
+    }
+    .mode-btn:hover {background:#ccc;}
+    #flag {
+      max-width:200px; margin:20px auto 10px;
+      display:none; border-radius:12px;
+      box-shadow:0 4px 12px rgba(0,0,0,0.1);
+    }
+    .flags {display:flex; flex-wrap:wrap; gap:10px; justify-content:center;}
+    .flag-option {
+      cursor:pointer; border-radius:12px;
+      box-shadow:0 4px 12px rgba(0,0,0,0.1);
+      transition:transform 0.2s;
+    }
+    .flag-option:hover {transform:scale(1.05);}
+    .flag-option img {
+      width:120px; border-radius:12px;
+    }
+    #result {font-size:1.2em; margin-top:10px; font-weight:500;}
+    #score {margin-top:6px; color:var(--muted); font-size:0.95em;}
+    .install-prompt {
+      background: #4CAF50;
+      color: white;
+      padding: 10px;
+      border-radius: 8px;
+      margin: 10px 0;
+      display: none;
+    }
+    .install-btn {
+      background: #fff;
+      color: #4CAF50;
+      border: none;
+      padding: 8px 16px;
+      border-radius: 4px;
+      cursor: pointer;
+      margin-left: 10px;
+    }
+    @keyframes fadeIn {
+      from {opacity:0; transform:translateY(10px);}
+      to {opacity:1; transform:translateY(0);}
+    }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div id="installPrompt" class="install-prompt">
+      📱 Install this app for a better experience!
+      <button id="installBtn" class="install-btn">Install</button>
+      <button id="dismissBtn" class="install-btn">Dismiss</button>
+    </div>
+    
+    <h2>🌍 Flag Game</h2>
+    <div class="hint" id="hint">Mode: flag → country</div>
+    <img id="flag" alt="Country Flag"/>
+    <input id="guess" placeholder="Your guess here"/>
+    <div class="flags" id="choices" style="display:none;"></div>
+    <button onclick="checkGuess()" id="guessBtn">Guess</button>
+    <div id="result"></div>
+    <div id="score">Score: 0</div>
+    <button class="mode-btn" onclick="toggleMode()">Switch Mode</button>
+  </div>
+
+  <script>
+const countryList = [
+      {name:"Afghanistan",code:"af"}, {name:"Albania",code:"al"},
+      {name:"Algeria",code:"dz"}, {name:"Andorra",code:"ad"},
+      {name:"Angola",code:"ao"}, {name:"Antigua and Barbuda",code:"ag"},
+      {name:"Argentina",code:"ar"}, {name:"Armenia",code:"am"},
+      {name:"Australia",code:"au"}, {name:"Austria",code:"at"},
+      {name:"Azerbaijan",code:"az"}, {name:"Bahamas",code:"bs"},
+      {name:"Bahrain",code:"bh"}, {name:"Bangladesh",code:"bd"},
+      {name:"Barbados",code:"bb"}, {name:"Belarus",code:"by"},
+      {name:"Belgium",code:"be"}, {name:"Belize",code:"bz"},
+      {name:"Benin",code:"bj"}, {name:"Bhutan",code:"bt"},
+      {name:"Bolivia",code:"bo"}, {name:"Bosnia and Herzegovina",code:"ba"},
+      {name:"Botswana",code:"bw"}, {name:"Brazil",code:"br"},
+      {name:"Brunei",code:"bn"}, {name:"Bulgaria",code:"bg"},
+      {name:"Burkina Faso",code:"bf"}, {name:"Burundi",code:"bi"},
+      {name:"Côte d'Ivoire",code:"ci"}, {name:"Cabo Verde",code:"cv"},
+      {name:"Cambodia",code:"kh"}, {name:"Cameroon",code:"cm"},
+      {name:"Canada",code:"ca"}, {name:"Central African Republic",code:"cf"},
+      {name:"Chad",code:"td"}, {name:"Chile",code:"cl"},
+      {name:"China",code:"cn"}, {name:"Colombia",code:"co"},
+      {name:"Comoros",code:"km"}, {name:"Congo (Congo-Brazzaville)",code:"cg"},
+      {name:"Costa Rica",code:"cr"}, {name:"Croatia",code:"hr"},
+      {name:"Cuba",code:"cu"}, {name:"Cyprus",code:"cy"},
+      {name:"Czechia",code:"cz"}, {name:"Democratic Republic of the Congo",code:"cd"},
+      {name:"Denmark",code:"dk"}, {name:"Djibouti",code:"dj"},
+      {name:"Dominica",code:"dm"}, {name:"Dominican Republic",code:"do"},
+      {name:"Ecuador",code:"ec"}, {name:"Egypt",code:"eg"},
+      {name:"El Salvador",code:"sv"}, {name:"Equatorial Guinea",code:"gq"},
+      {name:"Eritrea",code:"er"}, {name:"Estonia",code:"ee"},
+      {name:"Eswatini",code:"sz"}, {name:"Ethiopia",code:"et"},
+      {name:"Fiji",code:"fj"}, {name:"Finland",code:"fi"},
+      {name:"France",code:"fr"}, {name:"Gabon",code:"ga"},
+      {name:"Gambia",code:"gm"}, {name:"Georgia",code:"ge"},
+      {name:"Germany",code:"de"}, {name:"Ghana",code:"gh"},
+      {name:"Greece",code:"gr"}, {name:"Grenada",code:"gd"},
+      {name:"Guatemala",code:"gt"}, {name:"Guinea",code:"gn"},
+      {name:"Guinea-Bissau",code:"gw"}, {name:"Guyana",code:"gy"},
+      {name:"Haiti",code:"ht"}, {name:"Holy See",code:"va"},
+      {name:"Honduras",code:"hn"}, {name:"Hungary",code:"hu"},
+      {name:"Iceland",code:"is"}, {name:"India",code:"in"},
+      {name:"Indonesia",code:"id"}, {name:"Iran",code:"ir"},
+      {name:"Iraq",code:"iq"}, {name:"Ireland",code:"ie"},
+      {name:"Israel",code:"il"}, {name:"Italy",code:"it"},
+      {name:"Jamaica",code:"jm"}, {name:"Japan",code:"jp"},
+      {name:"Jordan",code:"jo"}, {name:"Kazakhstan",code:"kz"},
+      {name:"Kenya",code:"ke"}, {name:"Kiribati",code:"ki"},
+      {name:"Kuwait",code:"kw"}, {name:"Kyrgyzstan",code:"kg"},
+      {name:"Laos",code:"la"}, {name:"Latvia",code:"lv"},
+      {name:"Lebanon",code:"lb"}, {name:"Lesotho",code:"ls"},
+      {name:"Liberia",code:"lr"}, {name:"Libya",code:"ly"},
+      {name:"Liechtenstein",code:"li"}, {name:"Lithuania",code:"lt"},
+      {name:"Luxembourg",code:"lu"}, {name:"Madagascar",code:"mg"},
+      {name:"Malawi",code:"mw"}, {name:"Malaysia",code:"my"},
+      {name:"Maldives",code:"mv"}, {name:"Mali",code:"ml"},
+      {name:"Malta",code:"mt"}, {name:"Marshall Islands",code:"mh"},
+      {name:"Mauritania",code:"mr"}, {name:"Mauritius",code:"mu"},
+      {name:"Mexico",code:"mx"}, {name:"Micronesia",code:"fm"},
+      {name:"Moldova",code:"md"}, {name:"Monaco",code:"mc"},
+      {name:"Mongolia",code:"mn"}, {name:"Montenegro",code:"me"},
+      {name:"Morocco",code:"ma"}, {name:"Mozambique",code:"mz"},
+      {name:"Myanmar",code:"mm"}, {name:"Namibia",code:"na"},
+      {name:"Nauru",code:"nr"}, {name:"Nepal",code:"np"},
+      {name:"Netherlands",code:"nl"}, {name:"New Zealand",code:"nz"},
+      {name:"Nicaragua",code:"ni"}, {name:"Niger",code:"ne"},
+      {name:"Nigeria",code:"ng"}, {name:"North Korea",code:"kp"},
+      {name:"North Macedonia",code:"mk"}, {name:"Norway",code:"no"},
+      {name:"Oman",code:"om"}, {name:"Pakistan",code:"pk"},
+      {name:"Palau",code:"pw"}, {name:"Panama",code:"pa"},
+      {name:"Papua New Guinea",code:"pg"}, {name:"Paraguay",code:"py"},
+      {name:"Peru",code:"pe"}, {name:"Philippines",code:"ph"},
+      {name:"Poland",code:"pl"}, {name:"Portugal",code:"pt"},
+      {name:"Qatar",code:"qa"}, {name:"Romania",code:"ro"},
+      {name:"Russia",code:"ru"}, {name:"Rwanda",code:"rw"},
+      {name:"Saint Kitts and Nevis",code:"kn"}, {name:"Saint Lucia",code:"lc"},
+      {name:"Saint Vincent and the Grenadines",code:"vc"},
+      {name:"Samoa",code:"ws"}, {name:"San Marino",code:"sm"},
+      {name:"Sao Tome and Principe",code:"st"}, {name:"Saudi Arabia",code:"sa"},
+      {name:"Senegal",code:"sn"}, {name:"Serbia",code:"rs"},
+      {name:"Seychelles",code:"sc"}, {name:"Sierra Leone",code:"sl"},
+      {name:"Singapore",code:"sg"}, {name:"Slovakia",code:"sk"},
+      {name:"Slovenia",code:"si"}, {name:"Solomon Islands",code:"sb"},
+      {name:"Somalia",code:"so"}, {name:"South Africa",code:"za"},
+      {name:"South Korea",code:"kr"}, {name:"South Sudan",code:"ss"},
+      {name:"Spain",code:"es"}, {name:"Sri Lanka",code:"lk"},
+      {name:"Sudan",code:"sd"}, {name:"Suriname",code:"sr"},
+      {name:"Sweden",code:"se"}, {name:"Switzerland",code:"ch"},
+      {name:"Syria",code:"sy"}, {name:"Taiwan",code:"tw"},
+      {name:"Tajikistan",code:"tj"}, {name:"Tanzania",code:"tz"},
+      {name:"Thailand",code:"th"}, {name:"Timor-Leste",code:"tl"},
+      {name:"Togo",code:"tg"}, {name:"Tonga",code:"to"},
+      {name:"Trinidad and Tobago",code:"tt"}, {name:"Tunisia",code:"tn"},
+      {name:"Turkey",code:"tr"}, {name:"Turkmenistan",code:"tm"},
+      {name:"Tuvalu",code:"tv"}, {name:"Uganda",code:"ug"},
+      {name:"Ukraine",code:"ua"}, {name:"United Arab Emirates",code:"ae"},
+      {name:"United Kingdom",code:"gb"}, {name:"United States",code:"us"},
+      {name:"Uruguay",code:"uy"}, {name:"Uzbekistan",code:"uz"},
+      {name:"Vanuatu",code:"vu"}, {name:"Vatican City",code:"va"},
+      {name:"Venezuela",code:"ve"}, {name:"Vietnam",code:"vn"},
+      {name:"Yemen",code:"ye"}, {name:"Zambia",code:"zm"},
+      {name:"Zimbabwe",code:"zw"}
+    ];
+
+let mode = "flag-to-country", answer = {}, score = 0;
+let deferredPrompt;
+
+const hintEl = document.getElementById("hint"),
+      flagEl = document.getElementById("flag"),
+      resultEl = document.getElementById("result"),
+      scoreEl = document.getElementById("score"),
+      inputEl = document.getElementById("guess"),
+      guessBtn = document.getElementById("guessBtn"),
+      choicesEl = document.getElementById("choices"),
+      installPrompt = document.getElementById("installPrompt"),
+      installBtn = document.getElementById("installBtn"),
+      dismissBtn = document.getElementById("dismissBtn");
+
+// PWA Install Logic
+window.addEventListener('beforeinstallprompt', (e) => {
+  e.preventDefault();
+  deferredPrompt = e;
+  installPrompt.style.display = 'block';
+});
+
+installBtn.addEventListener('click', async () => {
+  if (deferredPrompt) {
+    deferredPrompt.prompt();
+    const { outcome } = await deferredPrompt.userChoice;
+    if (outcome === 'accepted') {
+      installPrompt.style.display = 'none';
+    }
+    deferredPrompt = null;
+  }
+});
+
+dismissBtn.addEventListener('click', () => {
+  installPrompt.style.display = 'none';
+});
+
+function toggleMode() {
+  mode = mode === "flag-to-country" ? "multiple-choice" : "flag-to-country";
+  nextQuestion();
+}
+
+function nextQuestion() {
+  resultEl.innerText = "";
+  inputEl.value = "";
+  scoreEl.innerText = `Score: ${score}`;
+  flagEl.style.display = "none";
+  inputEl.style.display = "none";
+  guessBtn.style.display = "none";
+  choicesEl.style.display = "none";
+  choicesEl.innerHTML = "";
+
+  answer = countryList[Math.floor(Math.random() * countryList.length)];
+
+  if (mode === "flag-to-country") {
+    hintEl.innerText = "Mode: flag → country";
+    flagEl.src = `https://flagcdn.com/w320/${answer.code}.png`;
+    flagEl.style.display = "block";
+    inputEl.style.display = "block";
+    guessBtn.style.display = "block";
+  } else if (mode === "multiple-choice") {
+    hintEl.innerText = `Mode: multiple choice → Which is the flag of ${answer.name}?`;
+    const options = [answer];
+    while (options.length < 3) {
+      let option = countryList[Math.floor(Math.random() * countryList.length)];
+      if (!options.find(o => o.code === option.code)) options.push(option);
+    }
+    options.sort(() => Math.random() - 0.5);
+    choicesEl.style.display = "flex";
+    options.forEach(opt => {
+      const div = document.createElement("div");
+      div.className = "flag-option";
+      div.innerHTML = `<img src="https://flagcdn.com/w320/${opt.code}.png" alt="${opt.name}">`;
+      div.onclick = () => {
+        if (opt.code === answer.code) {
+          resultEl.innerText = `🎉 Correct! That is ${answer.name}.`;
+          score++;
+        } else {
+          resultEl.innerText = `❌ Wrong! That was ${opt.name}.`;
+        }
+        setTimeout(nextQuestion, 1500);
+      };
+      choicesEl.appendChild(div);
+    });
+  }
+}
+
+function checkGuess(){
+  const guess = inputEl.value.trim().toLowerCase();
+  if(guess === answer.name.toLowerCase()){
+    resultEl.innerText = `🎉 Correct! It was ${answer.name}.`;
+    score++;
+    scoreEl.innerText = `Score: ${score}`;
+    setTimeout(nextQuestion,1500);
+  } else {
+    resultEl.innerText = "❌ Incorrect. Try again!";
+  }
+}
+
+// Register service worker
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('sw.js')
+      .then(registration => {
+        console.log('SW registered: ', registration);
+      })
+      .catch(registrationError => {
+        console.log('SW registration failed: ', registrationError);
+      });
+  });
+}
+
+nextQuestion();
+</script>
+</body>
+</html>
